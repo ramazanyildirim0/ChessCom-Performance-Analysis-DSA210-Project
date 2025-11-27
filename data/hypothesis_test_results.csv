@@ -1,0 +1,11 @@
+test_name,hypothesis,statistic,p_value,conclusion,details,significant
+White vs Black Win Rate (Two-Proportion Z-Test),H0: Win rate as White = Win rate as Black,2.5079755247384994,0.01214250774339726,REJECT H0,"White Win Rate: 51.56% (n=2116), Black Win Rate: 47.72% (n=2148)",True
+Rating Difference Effect (Two-Proportion Z-Test),H0: Rating difference does not affect win rate,22.585017853818087,6.083442395279982e-113,REJECT H0,"Win rate when higher rated (>50): 82.35% (n=612), Win rate when lower rated (<-50): 14.02% (n=492)",True
+Win Rate by Time Control (Chi-Square Test),H0: Win rate is the same across time controls,8.492050303393732,0.20422368481967695,FAIL TO REJECT H0,"Win rates by time control: blitz: 48.9% (n=2195), bullet: 50.3% (n=2049), daily: 100.0% (n=1), rapid: 52.6% (n=19)",False
+Win Rate by Time of Day (Chi-Square Test),H0: Win rate is the same regardless of time of day,6.564754805283566,0.3629778715161387,FAIL TO REJECT H0,"Win rates by time of day: Night (0-6): 45.7% (n=105), Morning (6-12): 50.8% (n=531), Afternoon (12-18): 49.7% (n=2013), Evening (18-24): 49.3% (n=1615)",False
+Win Rate by Day of Week (Chi-Square Test),H0: Win rate is the same across all days,13.259710469151056,0.35044988594860627,FAIL TO REJECT H0,"Best day: Thursday (52.1%), Worst day: Saturday (46.9%)",False
+Game Length vs Win Rate Correlation,H0: No correlation between game length and winning,-0.16518686509299635,1.825148007291484e-27,REJECT H0,"Pearson r = -0.1652, Spearman ρ = -0.1557",True
+Rating Progression Over Time (Mann-Whitney U),H0: No significant change in rating over time,15.0,1.0379754006351622e-279,REJECT H0,"Early avg rating: 796, Recent avg rating: 1321, Change: +525",True
+Win Rate by Opening (Chi-Square Test),H0: Win rate is the same across openings,115.62305500282753,0.2904470945146008,FAIL TO REJECT H0,"Best: Nimzowitsch Defense Kennedy Pa... (65.0%), Worst: Italian Game Knight Attack Nor... (26.7%)",False
+Win Rate vs 50% (One-Sample Z-Test),H0: Win rate = 50%,-0.49006491398038154,0.6240879648267937,FAIL TO REJECT H0,Actual win rate: 49.62% (2116/4264 games),False
+Momentum Effect (Two-Proportion Z-Test),H0: Previous game result doesn't affect next game,0.6547101420077861,0.5126543941631191,FAIL TO REJECT H0,"Win rate after win: 50.1%, Win rate after loss: 49.1%",False
