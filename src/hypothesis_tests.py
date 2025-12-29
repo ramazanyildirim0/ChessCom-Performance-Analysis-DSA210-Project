@@ -1,6 +1,16 @@
 """
 Statistical Hypothesis Testing Module
 Conducts various statistical tests on chess game data
+
+Note on Terminology:
+- "Win rate" and "win probability" are used interchangeably throughout this module.
+  Both refer to the proportion of games won (wins / total games).
+
+Note on Multiple Testing Correction:
+- Tests 4 (Time of Day) and 5 (Day of Week) both examine temporal factors affecting
+  win rate. Since these are related hypotheses tested simultaneously, we apply
+  Bonferroni correction to control for family-wise error rate.
+- Corrected significance level for Tests 4 & 5: α = 0.05 / 2 = 0.025
 """
 
 import pandas as pd
@@ -16,10 +26,15 @@ from config import DATA_DIR, USERNAME
 
 warnings.filterwarnings('ignore')
 
+# Bonferroni correction for temporal tests (H4 and H5)
+# Since we test 2 related temporal hypotheses simultaneously, adjust alpha
+ALPHA_STANDARD = 0.05
+ALPHA_TEMPORAL_CORRECTED = 0.05 / 2  # = 0.025 (Bonferroni correction for 2 tests)
+
 
 class ChessHypothesisTester:
     """Conducts statistical hypothesis tests on chess game data"""
-    
+
     def __init__(self, df: pd.DataFrame):
         self.df = df.copy()
         self._prepare_data()
@@ -45,8 +60,9 @@ class ChessHypothesisTester:
             include_lowest=True
         )
     
-    def _format_result(self, test_name: str, hypothesis: str, statistic: float, 
-                       p_value: float, conclusion: str, details: str = ""):
+    def _format_result(self, test_name: str, hypothesis: str, statistic: float,
+                       p_value: float, conclusion: str, details: str = "",
+                       alpha: float = ALPHA_STANDARD, correction_note: str = ""):
         """Format test result for display"""
         result = {
             'test_name': test_name,
@@ -55,7 +71,9 @@ class ChessHypothesisTester:
             'p_value': p_value,
             'conclusion': conclusion,
             'details': details,
-            'significant': p_value < 0.05
+            'alpha': alpha,
+            'correction_note': correction_note,
+            'significant': p_value < alpha if not np.isnan(p_value) else False
         }
         self.results.append(result)
         return result
@@ -173,30 +191,36 @@ class ChessHypothesisTester:
         Test 4: Does time of day significantly affect performance?
         H0: Win rate is the same regardless of time of day
         H1: Win rate differs by time of day
+
+        Note: Bonferroni correction applied (α = 0.025) since this test and
+        Test 5 (Day of Week) both examine temporal factors affecting win rate.
         """
         # Create contingency table
         contingency = pd.crosstab(self.df['time_of_day'], self.df['result'])
-        
+
         # Chi-square test
         chi2, p_value, dof, expected = chi2_contingency(contingency)
-        
+
         # Calculate win rates per time of day
         tod_winrates = self.df.groupby('time_of_day', observed=True)['is_win'].agg(['mean', 'count'])
         tod_winrates['win_rate'] = tod_winrates['mean'] * 100
-        
-        conclusion = "REJECT H0" if p_value < 0.05 else "FAIL TO REJECT H0"
+
+        # Use Bonferroni-corrected alpha for temporal tests
+        conclusion = "REJECT H0" if p_value < ALPHA_TEMPORAL_CORRECTED else "FAIL TO REJECT H0"
         details = "Win rates by time of day: " + ", ".join(
-            [f"{tod}: {row['win_rate']:.1f}% (n={int(row['count'])})" 
+            [f"{tod}: {row['win_rate']:.1f}% (n={int(row['count'])})"
              for tod, row in tod_winrates.iterrows()]
         )
-        
+
         return self._format_result(
             "Win Rate by Time of Day (Chi-Square Test)",
             "H0: Win rate is the same regardless of time of day",
             chi2,
             p_value,
             conclusion,
-            details
+            details,
+            alpha=ALPHA_TEMPORAL_CORRECTED,
+            correction_note="Bonferroni correction applied (2 temporal tests)"
         )
     
     def test_day_of_week_effect(self) -> dict:
@@ -204,28 +228,34 @@ class ChessHypothesisTester:
         Test 5: Does day of week affect performance?
         H0: Win rate is the same across all days
         H1: Win rate differs by day of week
+
+        Note: Bonferroni correction applied (α = 0.025) since this test and
+        Test 4 (Time of Day) both examine temporal factors affecting win rate.
         """
         # Create contingency table
         contingency = pd.crosstab(self.df['day_of_week'], self.df['result'])
-        
+
         # Chi-square test
         chi2, p_value, dof, expected = chi2_contingency(contingency)
-        
+
         # Find best and worst days
         day_winrates = self.df.groupby('day_of_week')['is_win'].mean() * 100
         best_day = day_winrates.idxmax()
         worst_day = day_winrates.idxmin()
-        
-        conclusion = "REJECT H0" if p_value < 0.05 else "FAIL TO REJECT H0"
+
+        # Use Bonferroni-corrected alpha for temporal tests
+        conclusion = "REJECT H0" if p_value < ALPHA_TEMPORAL_CORRECTED else "FAIL TO REJECT H0"
         details = f"Best day: {best_day} ({day_winrates[best_day]:.1f}%), Worst day: {worst_day} ({day_winrates[worst_day]:.1f}%)"
-        
+
         return self._format_result(
             "Win Rate by Day of Week (Chi-Square Test)",
             "H0: Win rate is the same across all days",
             chi2,
             p_value,
             conclusion,
-            details
+            details,
+            alpha=ALPHA_TEMPORAL_CORRECTED,
+            correction_note="Bonferroni correction applied (2 temporal tests)"
         )
     
     def test_game_length_correlation(self) -> dict:
@@ -411,8 +441,10 @@ class ChessHypothesisTester:
         print("\n" + "="*80)
         print("STATISTICAL HYPOTHESIS TESTING")
         print("="*80)
-        print(f"\nSignificance level: α = 0.05")
-        print(f"Total games analyzed: {len(self.df)}\n")
+        print(f"\nSignificance level: α = 0.05 (standard)")
+        print(f"Bonferroni-corrected α = 0.025 (for temporal tests H4 & H5)")
+        print(f"Total games analyzed: {len(self.df)}")
+        print(f"\nNote: 'Win rate' and 'win probability' are used interchangeably")
         
         tests = [
             self.test_white_advantage,
@@ -446,11 +478,17 @@ class ChessHypothesisTester:
         print(f"Test Statistic: {result['statistic']:.4f}" if not np.isnan(result['statistic']) else "Test Statistic: N/A")
         print(f"P-value: {result['p_value']:.6f}" if not np.isnan(result['p_value']) else "P-value: N/A")
         print(f"Details: {result['details']}")
-        
+
+        # Show alpha level and correction note if applicable
+        alpha = result.get('alpha', ALPHA_STANDARD)
+        correction_note = result.get('correction_note', '')
+        if correction_note:
+            print(f"Note: {correction_note}")
+
         if result['significant']:
-            print(f"📊 Result: {result['conclusion']} - Statistically significant at α=0.05")
+            print(f"Result: {result['conclusion']} - Statistically significant at α={alpha}")
         else:
-            print(f"📊 Result: {result['conclusion']}")
+            print(f"Result: {result['conclusion']} (α={alpha})")
     
     def _print_summary(self):
         """Print summary of all test results"""
